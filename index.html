@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="terang" data-huruf="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flashcard UAS</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" type="image/png" href="ikon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  /* ===== Tema & ukuran huruf ===== */
+  :root {
+    --bg: #f6f7f9; --kartu: #ffffff; --teks: #1c1e21; --teks-redup: #5f6670;
+    --garis: #d8dbe0; --aksen: #2563eb; --aksen-teks: #ffffff;
+    --bahaya: #c62828; --ok: #2e7d32;
+  }
+  html[data-tema="gelap"] {
+    --bg: #14161a; --kartu: #1f2227; --teks: #eceef1; --teks-redup: #a3a9b2;
+    --garis: #353a42; --aksen: #6ea0ff; --aksen-teks: #0b1220;
+    --bahaya: #ff8a80; --ok: #81c784;
+  }
+  html[data-huruf="kecil"]  { font-size: 15px; }
+  html[data-huruf="normal"] { font-size: 17px; }
+  html[data-huruf="besar"]  { font-size: 20px; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--teks);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.45; padding-bottom: 4.5rem;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5; background: var(--kartu);
+    border-bottom: 1px solid var(--garis); padding: .6rem .9rem;
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.05rem; margin: 0; flex: 1 1 auto; }
+  .kelompok { display: inline-flex; border: 1px solid var(--garis); border-radius: .5rem; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .kelompok button { background: transparent; border: 0; padding: .3rem .65rem; }
+  .kelompok button[aria-pressed="true"] { background: var(--aksen); color: var(--aksen-teks); }
+  .btn { background: var(--aksen); color: var(--aksen-teks); border: 0; border-radius: .5rem; padding: .5rem .9rem; }
+  .btn.polos { background: transparent; color: var(--teks); border: 1px solid var(--garis); }
+  .btn.bahaya { background: transparent; color: var(--bahaya); border: 1px solid var(--bahaya); }
+
+  /* Nama makul / teks panjang tanpa spasi tidak boleh melebarkan halaman */
+  main { max-width: 40rem; margin: 0 auto; padding: .9rem; overflow-wrap: anywhere; }
+  select { text-overflow: ellipsis; }
+  .panel { background: var(--kartu); border: 1px solid var(--garis); border-radius: .75rem; padding: .9rem; margin-bottom: .8rem; }
+  .panel h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+  .redup { color: var(--teks-redup); font-size: .9rem; }
+  .banner-uji { background: #fff3cd; color: #5c4400; border: 1px solid #e0c36a; border-radius: .5rem; padding: .5rem .7rem; margin-bottom: .8rem; font-size: .9rem; }
+
+  .baris-makul { border-top: 1px solid var(--garis); padding: .7rem 0; }
+  .baris-makul:first-of-type { border-top: 0; }
+  .baris-makul .nama { font-weight: 600; }
+  .baris-makul .info { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-top: .4rem; }
+  input[type="date"], input[type="text"] {
+    font: inherit; color: var(--teks); background: var(--bg);
+    border: 1px solid var(--garis); border-radius: .5rem; padding: .4rem .55rem;
+  }
+  input[type="text"] { width: 100%; margin-bottom: .5rem; }
+  select, textarea {
+    font: inherit; color: var(--teks); background: var(--bg);
+    border: 1px solid var(--garis); border-radius: .5rem; padding: .4rem .55rem;
+    width: 100%; margin-bottom: .6rem;
+  }
+  textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; resize: vertical; }
+  .hasil-impor { border-left: 4px solid var(--garis); padding: .4rem .7rem; border-radius: 0 .5rem .5rem 0; }
+  .hasil-impor.ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .hasil-impor.salah { border-left-color: var(--bahaya); background: color-mix(in srgb, var(--bahaya) 10%, transparent); }
+  .hasil-impor p { margin: 0 0 .3rem; }
+  .hasil-impor ul { margin: .2rem 0 0; padding-left: 1.2rem; }
+  label { display: block; font-size: .85rem; color: var(--teks-redup); margin-bottom: .15rem; }
+  .pesan-salah { color: var(--bahaya); font-size: .9rem; min-height: 1.2em; margin: .2rem 0 .5rem; }
+
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--kartu);
+    border-top: 1px solid var(--garis); display: flex;
+  }
+  nav button { flex: 1; background: transparent; border: 0; padding: .85rem .2rem; font-size: .9rem; white-space: nowrap; }
+  nav button[aria-current="page"] { color: var(--aksen); font-weight: 700; border-top: 3px solid var(--aksen); padding-top: calc(.85rem - 3px); }
+  .tersembunyi { display: none !important; }
+
+  /* ===== Kartu belajar ===== */
+  .atas-kartu { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .7rem; }
+  .atas-kartu .posisi { flex: 1 1 auto; font-weight: 600; }
+  .lencana { font-size: .8rem; border: 1px solid var(--garis); border-radius: .8rem; padding: .1rem .6rem; color: var(--teks-redup); max-width: 100%; overflow-wrap: anywhere; }
+  .soal { white-space: pre-wrap; margin: 0 0 .7rem; font-size: 1.05rem; }
+  .opsi { display: flex; gap: .6rem; border: 1px solid var(--garis); border-radius: .6rem; padding: .55rem .7rem; margin-bottom: .45rem; }
+  .opsi .huruf { font-weight: 700; color: var(--teks-redup); min-width: 1.2rem; }
+  .opsi.benar { border-color: var(--ok); border-width: 2px; background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .opsi.benar .huruf { color: var(--ok); }
+  .bagian { margin-bottom: .8rem; }
+  .bagian .tanya { white-space: pre-wrap; font-weight: 600; }
+  .jawab { white-space: pre-wrap; border-left: 4px solid var(--ok); padding: .35rem .7rem; margin-top: .35rem; background: color-mix(in srgb, var(--ok) 10%, transparent); border-radius: 0 .5rem .5rem 0; }
+  .pemisah { border: 0; border-top: 1px dashed var(--garis); margin: .9rem 0; }
+  .label-belakang { font-size: .85rem; font-weight: 700; color: var(--ok); margin: 0 0 .4rem; }
+  .btn.lebar { width: 100%; padding: .8rem; font-size: 1.05rem; }
+
+  /* ===== Daftar kartu ===== */
+  .judul-makul { font-weight: 700; margin: .9rem 0 .4rem; }
+  .judul-makul:first-child { margin-top: 0; }
+  details.kartu-baris { border: 1px solid var(--garis); border-radius: .6rem; margin-bottom: .45rem; background: var(--bg); }
+  details.kartu-baris > summary { padding: .55rem .7rem; cursor: pointer; }
+  details.kartu-baris > summary .ringkas { display: block; margin: .25rem 0 .15rem; }
+  details.kartu-baris .isi { padding: .2rem .8rem .8rem; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .tombol-baris { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+
+  /* ===== Form tambah/edit kartu ===== */
+  .form-kartu label { margin-top: .2rem; }
+  .baris-opsi { display: flex; gap: .5rem; align-items: flex-start; }
+  .baris-opsi .huruf { font-weight: 700; color: var(--teks-redup); margin-top: .5rem; min-width: 1.2rem; }
+  .baris-opsi input[type="radio"] { width: 1.3rem; height: 1.3rem; margin: .55rem 0 0; flex: none; }
+  .baris-opsi textarea { flex: 1; font-family: inherit; font-size: 1rem; }
+  .form-kartu textarea { font-family: inherit; font-size: 1rem; }
+  .blok-bagian { border: 1px solid var(--garis); border-radius: .6rem; padding: .6rem; margin-bottom: .6rem; }
+  .blok-bagian .judul-bagian { font-weight: 700; margin-bottom: .3rem; }
+  .pesan-form { color: var(--bahaya); margin: .5rem 0 0; padding-left: 1.2rem; }
+  .pesan-ok { color: var(--ok); margin: .5rem 0 0; font-weight: 600; }
+  .banner-backup { background: #fff3cd; color: #5c4400; border: 1px solid #e0c36a; border-radius: .5rem; padding: .6rem .7rem; margin-bottom: .8rem; font-size: .9rem; }
+  .banner-backup button { margin-top: .5rem; }
+  .kotak-restore { border: 1px solid var(--garis); border-radius: .6rem; padding: .7rem; margin-top: .7rem; }
+  .kotak-restore p { margin: 0 0 .4rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Flashcard UAS</h1>
+</header>
+
+<main>
+  <div id="banner-uji" class="banner-uji tersembunyi"></div>
+
+  <!-- ===== Layar Belajar (diisi di langkah berikutnya) ===== -->
+  <section id="layar-belajar">
+    <div id="banner-backup" class="banner-backup tersembunyi"></div>
+    <div id="area-kartu"></div>
+    <div class="panel">
+      <h2>Hari ini</h2>
+      <div id="info-hari" class="redup"></div>
+    </div>
+    <div class="panel">
+      <h2>Makul &amp; sisa hari</h2>
+      <div id="ringkasan-makul"></div>
+    </div>
+  </section>
+
+  <!-- ===== Layar Pengaturan: tema & ukuran huruf ===== -->
+  <section id="layar-setting" class="tersembunyi">
+    <div class="panel">
+      <h2>Tampilan</h2>
+      <label>Ukuran huruf</label>
+      <div class="kelompok" role="group" aria-label="Ukuran huruf" style="margin-bottom:.9rem">
+        <button type="button" data-huruf="kecil"  aria-pressed="false">Kecil</button>
+        <button type="button" data-huruf="normal" aria-pressed="true">Normal</button>
+        <button type="button" data-huruf="besar"  aria-pressed="false">Besar</button>
+      </div>
+      <label>Tema</label>
+      <div class="kelompok" role="group" aria-label="Tema">
+        <button type="button" data-tema="terang" aria-pressed="true">Terang</button>
+        <button type="button" data-tema="gelap"  aria-pressed="false">Gelap</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Backup dan restore</h2>
+      <div id="info-backup" style="margin-bottom:.6rem"></div>
+      <div class="tombol-baris" style="margin-top:0">
+        <button type="button" class="btn" id="tombol-backup">Simpan backup</button>
+        <button type="button" class="btn polos" id="tombol-pilih-file">Pulihkan dari file</button>
+      </div>
+      <input type="file" id="in-file-backup" accept=".json,application/json" class="tersembunyi">
+      <div id="hasil-backup" style="margin-top:.7rem"></div>
+      <p class="redup" style="margin:.7rem 0 0">Simpan file backup di tempat aman (misalnya kirim ke Google Drive atau ke diri sendiri). File yang cuma ada di HP ikut hilang kalau HP rusak atau hilang.</p>
+    </div>
+  </section>
+
+  <!-- ===== Layar Atur ujian: tanggal ujian per makul ===== -->
+  <section id="layar-atur" class="tersembunyi">
+    <div class="panel">
+      <h2>Tanggal ujian per makul</h2>
+      <div id="daftar-makul"></div>
+    </div>
+    <div class="panel">
+      <h2>Tambah makul</h2>
+      <label for="in-kode">Kode makul</label>
+      <input type="text" id="in-kode" placeholder="contoh: STSI4305" autocomplete="off">
+      <label for="in-nama">Nama makul</label>
+      <input type="text" id="in-nama" placeholder="contoh: Etika Profesi" autocomplete="off">
+      <label for="in-tgl">Tanggal ujian</label>
+      <input type="date" id="in-tgl" style="margin-bottom:.5rem">
+      <div id="pesan-tambah" class="pesan-salah"></div>
+      <button type="button" class="btn" id="tombol-tambah">Tambah makul</button>
+    </div>
+  </section>
+
+  <!-- ===== Layar Kartu: daftar, impor ===== -->
+  <section id="layar-kartu" class="tersembunyi">
+    <div class="panel">
+      <h2>Daftar kartu</h2>
+      <div id="info-kartu" class="redup" style="margin-bottom:.6rem"></div>
+      <div id="daftar-kartu"></div>
+    </div>
+    <div class="panel">
+      <h2>Tambah kartu</h2>
+      <label for="sel-makul-tambah">Masuk ke makul</label>
+      <select id="sel-makul-tambah"></select>
+      <label for="sel-jenis">Jenis kartu</label>
+      <select id="sel-jenis">
+        <option value="pg">Pilihan ganda</option>
+        <option value="esai">Esai</option>
+        <option value="hitungan">Hitungan</option>
+      </select>
+      <label for="in-mulai-tambah">Mulai muncul tanggal</label>
+      <input type="date" id="in-mulai-tambah" style="margin-bottom:.6rem">
+      <div id="form-tambah"></div>
+      <div id="hasil-tambah"></div>
+    </div>
+    <div class="panel">
+      <h2>Impor kartu</h2>
+      <label for="sel-makul">Masuk ke makul</label>
+      <select id="sel-makul"></select>
+      <label for="in-mulai">Mulai muncul tanggal</label>
+      <input type="date" id="in-mulai" style="margin-bottom:.6rem">
+      <label for="in-tempel">Tempel teks kartu (JSON, dari "[" sampai "]")</label>
+      <textarea id="in-tempel" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder='[ { "jenis": "pg", "soal": "...", "opsi": ["...", "...", "...", "..."], "benar": 0, "alasan": "..." } ]'></textarea>
+      <button type="button" class="btn" id="tombol-impor">Impor</button>
+      <div id="hasil-impor" style="margin-top:.7rem"></div>
+    </div>
+    <div class="panel">
+      <h2>Kartu contoh</h2>
+      <div id="pesan-kartu" class="pesan-salah"></div>
+      <div style="display:flex; gap:.5rem; flex-wrap:wrap">
+        <button type="button" class="btn polos" id="tombol-muat-contoh">Muat kartu contoh</button>
+        <button type="button" class="btn polos" id="tombol-hapus-contoh">Hapus kartu contoh</button>
+      </div>
+      <p class="redup" style="margin:.6rem 0 0">Kartu contoh dipasang ke makul pertama di daftar, dan cuma buat uji tampilan.</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" id="nav-belajar" aria-current="page">Belajar</button>
+  <button type="button" id="nav-kartu">Kartu</button>
+  <button type="button" id="nav-atur">Atur ujian</button>
+  <button type="button" id="nav-setting">Pengaturan</button>
+</nav>
+
+<script src="jadwal.js"></script>
+<script src="impor.js"></script>
+<script src="backup.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ===== Penyimpanan (localStorage), aman kalau diblokir browser =====
+  var KUNCI = "flashcard-uas-v1";
+  var data;
+
+  function dataAwal() {
+    return {
+      pengaturan: { tema: null, huruf: "normal" },
+      makul: [{ id: "STSI4305", nama: "Etika Profesi", ujian: "2026-11-28" }],
+      kartu: []
+    };
+  }
+
+  function muat() {
+    try {
+      var mentah = localStorage.getItem(KUNCI);
+      if (mentah) {
+        var d = JSON.parse(mentah);
+        if (d && d.pengaturan && Array.isArray(d.makul) && Array.isArray(d.kartu)) return d;
+      }
+    } catch (e) { /* abaikan, pakai data awal */ }
+    return dataAwal();
+  }
+
+  function simpan() {
+    try { localStorage.setItem(KUNCI, JSON.stringify(data)); } catch (e) { /* abaikan */ }
+  }
+
+  // ===== Tanggal "hari ini" =====
+  // Normalnya pakai tanggal HP. Khusus uji: tambahkan ?hari=2026-11-24 di alamat halaman.
+  function tanggalLokal(d) {
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var t = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + m + "-" + t;
+  }
+  function modeUji() {
+    var p = new URLSearchParams(location.search).get("hari");
+    return p && /^\d{4}-\d{2}-\d{2}$/.test(p) ? p : null;
+  }
+  function hariIni() { return modeUji() || tanggalLokal(new Date()); }
+
+  var BULAN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  var NAMA_HARI = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  function tampilTanggal(iso) {
+    var p = iso.split("-");
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    return NAMA_HARI[d.getUTCDay()] + ", " + (+p[2]) + " " + BULAN[+p[1] - 1] + " " + p[0];
+  }
+
+  // ===== Pembantu bikin elemen (aman dari teks aneh: pakai textContent) =====
+  function el(tag, atribut, teks) {
+    var e = document.createElement(tag);
+    if (atribut) for (var k in atribut) e.setAttribute(k, atribut[k]);
+    if (teks != null) e.textContent = teks;
+    return e;
+  }
+  function kosongkan(e) { while (e.firstChild) e.removeChild(e.firstChild); }
+  function $(id) { return document.getElementById(id); }
+
+  // ===== Tema & ukuran huruf =====
+  var root = document.documentElement;
+
+  function terapkanTema() {
+    var tema = data.pengaturan.tema;
+    if (!tema) {
+      tema = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "gelap" : "terang";
+    }
+    root.setAttribute("data-tema", tema);
+    var tombol = document.querySelectorAll("button[data-tema]");
+    for (var i = 0; i < tombol.length; i++) {
+      tombol[i].setAttribute("aria-pressed", tombol[i].getAttribute("data-tema") === tema ? "true" : "false");
+    }
+  }
+
+  function terapkanHuruf() {
+    var h = data.pengaturan.huruf;
+    root.setAttribute("data-huruf", h);
+    var tombol = document.querySelectorAll("[data-huruf]");
+    for (var i = 0; i < tombol.length; i++) {
+      if (tombol[i].tagName === "BUTTON") {
+        tombol[i].setAttribute("aria-pressed", tombol[i].getAttribute("data-huruf") === h ? "true" : "false");
+      }
+    }
+  }
+
+  // ===== Bentuk data kartu =====
+  // Semua kartu punya: id, makulId, jenis ("pg" | "hitungan" | "esai"),
+  //                    jarak (0 = baru), due ("YYYY-MM-DD"), lupa (true/false)  -> dipakai jadwal.js
+  // Kartu pilihan ganda ("pg"):
+  //   soal, opsi (4 teks), benar (nomor opsi yang benar: 0-3), alasan
+  // Kartu paket ("hitungan" atau "esai"): satu soal induk, satu nilai untuk semua bagian
+  //   soal (soal induk), bagian: [ { huruf: "a", tanya: "...", jawab: "jawaban model contoh" }, ... ]
+  var AWALAN_CONTOH = "contoh-";
+
+  function kartuContoh(makulId, tanggal) {
+    function dasar(n, jenis) {
+      return { id: AWALAN_CONTOH + n, makulId: makulId, jenis: jenis, jarak: 0, due: tanggal, lupa: false };
+    }
+    function pg(n, soal, opsi, benar, alasan) {
+      var k = dasar(n, "pg");
+      k.soal = soal; k.opsi = opsi; k.benar = benar; k.alasan = alasan;
+      return k;
+    }
+    var esai = dasar(4, "esai");
+    esai.soal = "(Contoh) Sebuah toko online menyimpan data pelanggan di sistemnya.";
+    esai.bagian = [
+      { huruf: "a", tanya: "Sebutkan dua jenis data pelanggan yang perlu dijaga kerahasiaannya.",
+        jawab: "Contoh: alamat rumah dan nomor telepon, data pembayaran." },
+      { huruf: "b", tanya: "Jelaskan satu risiko jika data tersebut bocor.",
+        jawab: "Contoh: data dipakai pihak lain untuk penipuan atas nama pelanggan." },
+      { huruf: "c", tanya: "Usulkan satu langkah untuk mencegahnya.",
+        jawab: "Contoh: membatasi hak akses data hanya untuk petugas yang berwenang." }
+    ];
+    return [
+      pg(1, "(Contoh) Apa kepanjangan dari HTML?",
+        ["HighText Machine Language", "HyperText Markup Language", "HyperTool Multi Language", "Home Text Markup Level"],
+        1, "HTML = HyperText Markup Language, bahasa penanda untuk menyusun halaman web."),
+      pg(2, "(Contoh) Manakah yang termasuk perangkat keluaran (output device)?",
+        ["Monitor", "Keyboard", "Mouse", "Scanner"],
+        0, "Monitor menampilkan hasil pengolahan. Tiga lainnya memasukkan data (perangkat masukan)."),
+      pg(3, "(Contoh) Satuan terkecil data dalam komputer adalah...",
+        ["Byte", "Hertz", "Bit", "Pixel"],
+        2, "Bit adalah satuan terkecil. 1 byte = 8 bit."),
+      esai
+    ];
+  }
+
+  function muatContoh() {
+    var pesan = $("pesan-kartu");
+    if (data.makul.length === 0) { pesan.textContent = "Tambah makul dulu sebelum muat kartu contoh."; return; }
+    data.kartu = data.kartu.filter(function (k) { return k.id.indexOf(AWALAN_CONTOH) !== 0; });
+    kartuContoh(data.makul[0].id, hariIni()).forEach(function (k) { data.kartu.push(k); });
+    simpan();
+    pesan.textContent = "";
+    gambarTabKartu();
+    segarkanBelajar();
+  }
+
+  function hapusContoh() {
+    data.kartu = data.kartu.filter(function (k) { return k.id.indexOf(AWALAN_CONTOH) !== 0; });
+    simpan();
+    $("pesan-kartu").textContent = "";
+    gambarTabKartu();
+    segarkanBelajar();
+  }
+
+  function gambarInfoKartu() {
+    var info = $("info-kartu");
+    if (data.kartu.length === 0) { info.textContent = "Belum ada kartu."; return; }
+    var hitung = {};
+    data.kartu.forEach(function (k) { hitung[k.makulId] = (hitung[k.makulId] || 0) + 1; });
+    info.textContent = "Total " + data.kartu.length + " kartu: " +
+      Object.keys(hitung).map(function (id) { return namaMakul(id) + " (" + hitung[id] + ")"; }).join(", ");
+  }
+
+  // ===== Form tambah/edit kartu =====
+  // bangunForm(jenis, awal) -> { elemen, ambil }
+  //   jenis = "pg" | "esai" | "hitungan"; awal = kartu yang diedit (atau null untuk kartu baru)
+  //   ambil() mengembalikan isi form (belum dicek). Huruf bagian a, b, c otomatis sesuai urutan.
+  var hitungForm = 0;
+
+  function hurufBagian(i) { return String.fromCharCode(97 + i); }
+
+  function bangunForm(jenis, awal) {
+    hitungForm++;
+    var akar = el("div", { "class": "form-kartu" });
+
+    function kotak(baris, nilai) {
+      var t = el("textarea", { rows: String(baris), spellcheck: "false", autocomplete: "off" });
+      t.value = nilai || "";
+      return t;
+    }
+
+    akar.appendChild(el("label", null, jenis === "pg" ? "Soal" : "Soal induk"));
+    var tSoal = kotak(3, awal && awal.soal);
+    akar.appendChild(tSoal);
+
+    if (jenis === "pg") {
+      var tOpsi = [], radio = [];
+      akar.appendChild(el("label", null, "Opsi (ketuk bulatan di samping opsi yang benar)"));
+      for (var n = 0; n < 4; n++) {
+        var baris = el("div", { "class": "baris-opsi" });
+        var r = el("input", { type: "radio", name: "benar-" + hitungForm, "aria-label": "Opsi " + HURUF_OPSI[n] + " adalah jawaban benar" });
+        if (awal && awal.benar === n) r.checked = true;
+        var t = kotak(2, awal && awal.opsi && awal.opsi[n]);
+        t.setAttribute("aria-label", "Isi opsi " + HURUF_OPSI[n]);
+        baris.appendChild(r);
+        baris.appendChild(el("span", { "class": "huruf" }, HURUF_OPSI[n] + "."));
+        baris.appendChild(t);
+        akar.appendChild(baris);
+        radio.push(r); tOpsi.push(t);
+      }
+      akar.appendChild(el("label", null, "Alasan"));
+      var tAlasan = kotak(3, awal && awal.alasan);
+      akar.appendChild(tAlasan);
+
+      return {
+        elemen: akar,
+        ambil: function () {
+          var benar = null;
+          radio.forEach(function (r, i) { if (r.checked) benar = i; });
+          return { jenis: "pg", soal: tSoal.value, opsi: tOpsi.map(function (t) { return t.value; }), benar: benar, alasan: tAlasan.value };
+        }
+      };
+    }
+
+    // Kartu paket (esai atau hitungan): soal induk + bagian a, b, c ...
+    var bagian = [];
+    var wadahBagian = el("div");
+    var tmbTambah = el("button", { type: "button", "class": "btn polos" }, "Tambah bagian");
+
+    function nomori() {
+      bagian.forEach(function (b, i) {
+        b.judul.textContent = "Bagian " + hurufBagian(i);
+        b.tmbHapus.disabled = bagian.length === 1;
+      });
+      tmbTambah.disabled = bagian.length >= 26;
+    }
+
+    function tambahBagian(nilai) {
+      var blok = el("div", { "class": "blok-bagian" });
+      var b = { blok: blok, judul: el("div", { "class": "judul-bagian" }) };
+      b.tanya = kotak(2, nilai && nilai.tanya);
+      b.jawab = kotak(4, nilai && nilai.jawab);
+      b.tmbHapus = el("button", { type: "button", "class": "btn bahaya" }, "Hapus bagian ini");
+      b.tmbHapus.addEventListener("click", function () {
+        if (bagian.length <= 1) return;
+        bagian.splice(bagian.indexOf(b), 1);
+        wadahBagian.removeChild(blok);
+        nomori();
+      });
+      blok.appendChild(b.judul);
+      blok.appendChild(el("label", null, "Pertanyaan"));
+      blok.appendChild(b.tanya);
+      blok.appendChild(el("label", null, "Jawaban model contoh (boleh berbaris-baris: rumus, alur, hasil)"));
+      blok.appendChild(b.jawab);
+      blok.appendChild(b.tmbHapus);
+      bagian.push(b);
+      wadahBagian.appendChild(blok);
+      nomori();
+    }
+
+    tmbTambah.addEventListener("click", function () { tambahBagian(null); });
+    if (awal && awal.bagian && awal.bagian.length > 0) awal.bagian.forEach(tambahBagian);
+    else tambahBagian(null);
+    akar.appendChild(wadahBagian);
+    akar.appendChild(tmbTambah);
+
+    return {
+      elemen: akar,
+      ambil: function () {
+        return {
+          jenis: jenis, soal: tSoal.value,
+          bagian: bagian.map(function (b, i) { return { huruf: hurufBagian(i), tanya: b.tanya.value, jawab: b.jawab.value }; })
+        };
+      }
+    };
+  }
+
+  // Daftar pesan kesalahan untuk isi form (kosong = aman). Pakai aturan yang sama dengan impor.
+  function cekIsiForm(isi) {
+    var salah = [];
+    if (isi.jenis === "pg" && isi.benar === null) {
+      salah.push("Pilih jawaban yang benar (ketuk bulatan di samping opsi).");
+    }
+    Impor.cekIsi(isi).forEach(function (s) {
+      if (isi.jenis === "pg" && isi.benar === null && s.indexOf('"benar"') >= 0) return;
+      salah.push(s);
+    });
+    return salah;
+  }
+
+  function tampilPesanForm(wadah, daftar) {
+    kosongkan(wadah);
+    if (daftar.length === 0) return;
+    var ul = el("ul", { "class": "pesan-form" });
+    daftar.forEach(function (s) { ul.appendChild(el("li", null, s)); });
+    wadah.appendChild(ul);
+  }
+
+  // ----- Tambah kartu baru -----
+  var formTambah = null;
+
+  function buatFormTambah() {
+    var wadah = $("form-tambah");
+    kosongkan(wadah);
+    formTambah = bangunForm($("sel-jenis").value, null);
+    wadah.appendChild(formTambah.elemen);
+    var pesan = el("div");
+    wadah.appendChild(pesan);
+    var tmb = el("button", { type: "button", "class": "btn", style: "margin-top:.7rem" }, "Simpan kartu");
+    tmb.addEventListener("click", function () { simpanKartuBaru(pesan); });
+    wadah.appendChild(tmb);
+    kosongkan($("hasil-tambah"));
+  }
+
+  function simpanKartuBaru(pesan) {
+    var isi = formTambah.ambil();
+    var salah = cekIsiForm(isi);
+    if (salah.length > 0) { tampilPesanForm(pesan, salah); return; }
+
+    var makulId = $("sel-makul-tambah").value;
+    var makul = null;
+    data.makul.forEach(function (m) { if (m.id === makulId) makul = m; });
+    var hasil = Impor.proses(JSON.stringify([isi]), {
+      makulId: makulId,
+      tanggalUjian: makul ? makul.ujian : null,
+      mulai: $("in-mulai-tambah").value,
+      kartuAda: data.kartu
+    });
+    if (!hasil.ok) {
+      tampilPesanForm(pesan, hasil.kesalahan.map(function (s) { return s.replace(/^Kartu 1: /, ""); }));
+      return;
+    }
+    if (hasil.kartu.length === 0) {
+      tampilPesanForm(pesan, ["Soal ini sama dengan kartu yang sudah ada di makul ini, jadi tidak disimpan."]);
+      return;
+    }
+    data.kartu.push(hasil.kartu[0]);
+    simpan();
+    var tanggal = tampilTanggal($("in-mulai-tambah").value);
+    buatFormTambah();
+    $("hasil-tambah").appendChild(el("p", { "class": "pesan-ok" }, "Kartu masuk ke " + makul.nama + ". Mulai muncul " + tanggal + "."));
+    gambarInfoKartu();
+    gambarDaftarKartu();
+    segarkanBelajar();
+  }
+
+  function gambarTambah() {
+    isiMenuMakul($("sel-makul-tambah"));
+    if (!$("in-mulai-tambah").value) $("in-mulai-tambah").value = hariIni();
+  }
+
+  // ----- Edit kartu yang sudah ada (jadwalnya tidak berubah) -----
+  var kartuSedangEdit = null; // id kartu yang formnya lagi dibuka
+
+  var kartuHapusMenunggu = null; // id kartu yang lagi nunggu konfirmasi hapus
+
+  function hapusKartu(k) {
+    data.kartu = data.kartu.filter(function (x) { return x.id !== k.id; });
+    delete kartuTerbuka[k.id];
+    kartuHapusMenunggu = null;
+    if (kartuSedangEdit === k.id) kartuSedangEdit = null;
+    simpan();
+    gambarInfoKartu();
+    gambarDaftarKartu();
+    segarkanBelajar();
+  }
+
+  function bukaEdit(k) { kartuSedangEdit = k.id; kartuTerbuka[k.id] = true; gambarDaftarKartu(); }
+  function batalEdit() { kartuSedangEdit = null; gambarDaftarKartu(); }
+
+  function isiFormEdit(wadah, k) {
+    var form = bangunForm(k.jenis === "pg" ? "pg" : k.jenis, k);
+    wadah.appendChild(form.elemen);
+    var pesan = el("div");
+    wadah.appendChild(pesan);
+    var baris = el("div", { "class": "tombol-baris" });
+    var tmbSimpan = el("button", { type: "button", "class": "btn" }, "Simpan");
+    var tmbBatal = el("button", { type: "button", "class": "btn polos" }, "Batal");
+    tmbSimpan.addEventListener("click", function () {
+      var isi = form.ambil();
+      var salah = cekIsiForm(isi);
+      if (salah.length === 0) {
+        var dobel = data.kartu.some(function (o) {
+          return o.id !== k.id && o.makulId === k.makulId && Impor.samaSoal(o.soal, isi.soal);
+        });
+        if (dobel) salah.push("Soal ini sama dengan kartu lain di makul ini.");
+      }
+      if (salah.length > 0) { tampilPesanForm(pesan, salah); return; }
+      var bersih = Impor.bersihkan(isi);
+      k.soal = bersih.soal;
+      if (k.jenis === "pg") { k.opsi = bersih.opsi; k.benar = bersih.benar; k.alasan = bersih.alasan; }
+      else { k.bagian = bersih.bagian; }
+      simpan();
+      kartuSedangEdit = null;
+      gambarDaftarKartu();
+    });
+    tmbBatal.addEventListener("click", batalEdit);
+    baris.appendChild(tmbSimpan);
+    baris.appendChild(tmbBatal);
+    wadah.appendChild(baris);
+  }
+
+  // ===== Daftar kartu per makul (tab Kartu) =====
+  var kartuTerbuka = {}; // id kartu yang lagi dibuka, supaya tidak menutup sendiri waktu layar digambar ulang
+
+  function tanggalPendek(iso) {
+    var p = iso.split("-");
+    return (+p[2]) + " " + BULAN[+p[1] - 1].slice(0, 3) + " " + p[0];
+  }
+
+  function statusKartu(k) {
+    if (k.lupa) return "Lupa/Ragu, muncul " + tanggalPendek(k.due);
+    if (k.jarak === 0) return "Baru, muncul " + tanggalPendek(k.due);
+    return "Ingat (jarak " + k.jarak + " hari), muncul " + tanggalPendek(k.due);
+  }
+
+  function ringkasSoal(k) {
+    var s = k.soal.replace(/\s+/g, " ").trim();
+    return s.length > 90 ? s.slice(0, 90) + "..." : s;
+  }
+
+  function gambarDaftarKartu() {
+    var wadah = $("daftar-kartu");
+    kosongkan(wadah);
+    if (data.kartu.length === 0) {
+      wadah.appendChild(el("p", { "class": "redup", style: "margin:0" }, "Impor kartu lewat panel di bawah."));
+      return;
+    }
+    data.makul.forEach(function (m) {
+      var milik = data.kartu.filter(function (k) { return k.makulId === m.id; });
+      if (milik.length === 0) return;
+      wadah.appendChild(el("div", { "class": "judul-makul" }, m.nama + " (" + milik.length + " kartu)"));
+      milik.forEach(function (k) {
+        var d = el("details", { "class": "kartu-baris" });
+        if (kartuTerbuka[k.id]) d.open = true;
+        d.addEventListener("toggle", function () { kartuTerbuka[k.id] = d.open; });
+
+        var sum = el("summary");
+        sum.appendChild(el("span", { "class": "lencana" }, NAMA_JENIS[k.jenis] || k.jenis));
+        sum.appendChild(el("span", { "class": "ringkas" }, ringkasSoal(k)));
+        sum.appendChild(el("span", { "class": "redup" }, statusKartu(k)));
+        d.appendChild(sum);
+
+        var isi = el("div", { "class": "isi" });
+        if (kartuSedangEdit === k.id) {
+          d.open = true;
+          isiFormEdit(isi, k);
+        } else {
+          if (k.jenis === "pg") isiKartuPG(isi, k, true);
+          else isiKartuPaket(isi, k, true);
+          var tombolBaris = el("div", { "class": "tombol-baris" });
+          var tmbEdit = el("button", { type: "button", "class": "btn polos" }, "Edit");
+          tmbEdit.addEventListener("click", function () { kartuHapusMenunggu = null; bukaEdit(k); });
+          tombolBaris.appendChild(tmbEdit);
+
+          // Hapus: dua kali tekan biar tidak kepencet
+          var menunggu = kartuHapusMenunggu === k.id;
+          var tmbHapus = el("button", { type: "button", "class": "btn bahaya" }, menunggu ? "Yakin hapus?" : "Hapus");
+          tmbHapus.addEventListener("click", function () {
+            if (kartuHapusMenunggu === k.id) hapusKartu(k); else { kartuHapusMenunggu = k.id; gambarDaftarKartu(); }
+          });
+          tombolBaris.appendChild(tmbHapus);
+          if (menunggu) {
+            var tmbBatalHapus = el("button", { type: "button", "class": "btn polos" }, "Batal");
+            tmbBatalHapus.addEventListener("click", function () { kartuHapusMenunggu = null; gambarDaftarKartu(); });
+            tombolBaris.appendChild(tmbBatalHapus);
+          }
+          isi.appendChild(tombolBaris);
+          if (menunggu) {
+            isi.appendChild(el("p", { "class": "redup", style: "margin:.5rem 0 0" }, "Kartu dihapus permanen. Tekan sekali lagi untuk yakin."));
+          }
+        }
+        d.appendChild(isi);
+        wadah.appendChild(d);
+      });
+    });
+  }
+
+  // Semua yang tampil di tab Kartu
+  function gambarTabKartu() {
+    gambarInfoKartu();
+    gambarTambah();
+    gambarImpor();
+    gambarDaftarKartu();
+  }
+
+  // ===== Impor banyak kartu (logika cek ada di impor.js) =====
+  function isiMenuMakul(sel) {
+    var lama = sel.value;
+    kosongkan(sel);
+    if (data.makul.length === 0) {
+      sel.appendChild(el("option", { value: "" }, "Belum ada makul"));
+    } else {
+      data.makul.forEach(function (m) {
+        sel.appendChild(el("option", { value: m.id }, m.nama + " (" + m.id + ")"));
+      });
+      if (lama && data.makul.some(function (m) { return m.id === lama; })) sel.value = lama;
+    }
+  }
+
+  function gambarImpor() {
+    isiMenuMakul($("sel-makul"));
+    if (!$("in-mulai").value) $("in-mulai").value = hariIni();
+  }
+
+  function imporKartu() {
+    var makulId = $("sel-makul").value;
+    var makul = null;
+    data.makul.forEach(function (m) { if (m.id === makulId) makul = m; });
+    var hasil = Impor.proses($("in-tempel").value, {
+      makulId: makulId,
+      tanggalUjian: makul ? makul.ujian : null,
+      mulai: $("in-mulai").value,
+      kartuAda: data.kartu
+    });
+
+    var wadah = $("hasil-impor");
+    kosongkan(wadah);
+    var kotak = el("div", { "class": "hasil-impor " + (hasil.ok ? "ok" : "salah") });
+
+    if (!hasil.ok) {
+      kotak.appendChild(el("p", { style: "font-weight:600" },
+        "Impor dibatalkan, belum ada kartu yang masuk. Betulin dulu " + hasil.kesalahan.length + " hal ini:"));
+      var daftar = el("ul");
+      hasil.kesalahan.forEach(function (s) { daftar.appendChild(el("li", null, s)); });
+      kotak.appendChild(daftar);
+    } else {
+      hasil.kartu.forEach(function (k) { data.kartu.push(k); });
+      if (hasil.kartu.length > 0) {
+        simpan();
+        $("in-tempel").value = "";
+      }
+      var j = hasil.jumlah;
+      kotak.appendChild(el("p", { style: "font-weight:600" },
+        hasil.kartu.length > 0
+          ? "Berhasil: " + hasil.kartu.length + " kartu masuk ke " + makul.nama + " (" + j.pg + " pilihan ganda, " + j.hitungan + " hitungan, " + j.esai + " esai). Mulai muncul " + tampilTanggal($("in-mulai").value) + "."
+          : "Tidak ada kartu baru yang masuk."));
+      if (hasil.dilewati.length > 0) {
+        kotak.appendChild(el("p", null, "Dilewati " + hasil.dilewati.length + " kartu:"));
+        var dl = el("ul");
+        hasil.dilewati.forEach(function (s) { dl.appendChild(el("li", null, s)); });
+        kotak.appendChild(dl);
+      }
+    }
+    wadah.appendChild(kotak);
+    gambarInfoKartu();
+    gambarDaftarKartu();
+    if (hasil.ok && hasil.kartu.length > 0) segarkanBelajar();
+  }
+
+  // ===== Layar Belajar: sesi kartu hari ini =====
+  // sesi.ids   = daftar id kartu yang harus dibuka hari ini (urutan dari jadwal.js, aturan 7)
+  // sesi.i     = nomor kartu yang lagi tampil
+  // sesi.balik = true kalau sisi belakang lagi dibuka
+  var sesi = { ids: [], i: 0, balik: false, ingat: 0, lupa: 0 };
+  var NAMA_JENIS = { pg: "Pilihan ganda", hitungan: "Hitungan", esai: "Esai" };
+
+  function mulaiSesi() {
+    var ujian = {};
+    data.makul.forEach(function (m) { ujian[m.id] = m.ujian; });
+    var layak = data.kartu.filter(function (k) { return ujian[k.makulId]; });
+    sesi.ids = Jadwal.kartuHariIni(layak, hariIni(), ujian).map(function (k) { return k.id; });
+    sesi.i = 0;
+    sesi.balik = false;
+    sesi.ingat = 0;
+    sesi.lupa = 0;
+  }
+
+  function cariKartu(id) {
+    for (var i = 0; i < data.kartu.length; i++) if (data.kartu[i].id === id) return data.kartu[i];
+    return null;
+  }
+
+  function segarkanBelajar() {
+    mulaiSesi();
+    gambarBelajar();
+    gambarKartu();
+    gambarBannerBackup();
+  }
+
+  // Nama makul dari kodenya (kalau makul sudah dihapus, tampil kodenya)
+  function namaMakul(id) {
+    for (var i = 0; i < data.makul.length; i++) if (data.makul[i].id === id) return data.makul[i].nama;
+    return id;
+  }
+
+  var HURUF_OPSI = ["A", "B", "C", "D"];
+
+  function isiKartuPG(panel, k, belakang) {
+    panel.appendChild(el("p", { "class": "soal" }, k.soal));
+    k.opsi.forEach(function (teks, n) {
+      var adaBenar = belakang && n === k.benar;
+      var baris = el("div", { "class": "opsi" + (adaBenar ? " benar" : "") });
+      baris.appendChild(el("span", { "class": "huruf" }, HURUF_OPSI[n] + "."));
+      baris.appendChild(el("span", null, teks + (adaBenar ? "  ✓" : "")));
+      panel.appendChild(baris);
+    });
+    if (belakang) {
+      panel.appendChild(el("hr", { "class": "pemisah" }));
+      panel.appendChild(el("p", { "class": "label-belakang" }, "Jawaban benar: " + HURUF_OPSI[k.benar]));
+      panel.appendChild(el("div", { "class": "jawab" }, k.alasan));
+    }
+  }
+
+  function isiKartuPaket(panel, k, belakang) {
+    panel.appendChild(el("p", { "class": "soal" }, k.soal));
+    if (belakang) panel.appendChild(el("p", { "class": "label-belakang" }, "Jawaban model contoh"));
+    k.bagian.forEach(function (b) {
+      var blok = el("div", { "class": "bagian" });
+      blok.appendChild(el("div", { "class": "tanya" }, b.huruf + ". " + b.tanya));
+      if (belakang) blok.appendChild(el("div", { "class": "jawab" }, b.jawab));
+      panel.appendChild(blok);
+    });
+  }
+
+  // Tanggal terdekat setelah hari ini yang ada kartu jatuh tempo (dan masih sebelum ujian makulnya, aturan 8).
+  function teksBerikutnya() {
+    var hari = hariIni();
+    var ujian = {};
+    data.makul.forEach(function (m) { ujian[m.id] = m.ujian; });
+    var jumlah = {};
+    data.kartu.forEach(function (k) {
+      var u = ujian[k.makulId];
+      if (u && k.due > hari && k.due < u) jumlah[k.due] = (jumlah[k.due] || 0) + 1;
+    });
+    var tanggal = Object.keys(jumlah).sort();
+    if (tanggal.length === 0) return "Tidak ada kartu terjadwal lagi sebelum ujian.";
+    return "Kartu berikutnya jatuh tempo " + tampilTanggal(tanggal[0]) + " (" + jumlah[tanggal[0]] + " kartu).";
+  }
+
+  // Nilai kartu yang lagi tampil: hitung jadwal baru (jadwal.js), simpan, lanjut ke kartu berikutnya.
+  // Kartu Lupa/Ragu jatuh temponya besok, jadi tidak muncul lagi hari ini (aturan 3).
+  function nilaiSekarang(nilai) {
+    var k = cariKartu(sesi.ids[sesi.i]);
+    if (!k) return;
+    var makul = null;
+    for (var i = 0; i < data.makul.length; i++) if (data.makul[i].id === k.makulId) makul = data.makul[i];
+    if (!makul) return;
+    var baru = Jadwal.nilaiKartu(k, nilai, hariIni(), makul.ujian);
+    for (var n = 0; n < data.kartu.length; n++) if (data.kartu[n].id === k.id) data.kartu[n] = baru;
+    simpan();
+    if (nilai === "ingat") sesi.ingat++; else sesi.lupa++;
+    sesi.i++;
+    sesi.balik = false;
+    gambarBelajar();
+    gambarKartu();
+  }
+
+  function gambarKartu() {
+    var area = $("area-kartu");
+    kosongkan(area);
+
+    if (sesi.ids.length === 0) {
+      var kosong = el("div", { "class": "panel" });
+      kosong.appendChild(el("h2", null, "Kartu hari ini"));
+      kosong.appendChild(el("p", { "style": "margin:0 0 .5rem" },
+        data.kartu.length === 0 ? "Belum ada kartu." : "Tidak ada kartu yang jatuh tempo hari ini."));
+      if (data.kartu.length > 0) kosong.appendChild(el("p", { "class": "redup", style: "margin:0" }, teksBerikutnya()));
+      area.appendChild(kosong);
+      return;
+    }
+
+    if (sesi.i >= sesi.ids.length) {
+      var habis = el("div", { "class": "panel" });
+      habis.appendChild(el("h2", null, "Selesai untuk hari ini"));
+      habis.appendChild(el("p", { style: "margin:0 0 .5rem" },
+        sesi.ids.length + " kartu dinilai: " + sesi.ingat + " Ingat, " + sesi.lupa + " Lupa/Ragu."));
+      if (sesi.lupa > 0) {
+        habis.appendChild(el("p", { "class": "redup", style: "margin:0 0 .5rem" },
+          "Kartu Lupa/Ragu muncul lagi besok."));
+      }
+      habis.appendChild(el("p", { "class": "redup", style: "margin:0" }, teksBerikutnya()));
+      area.appendChild(habis);
+      return;
+    }
+
+    var k = cariKartu(sesi.ids[sesi.i]);
+    var panel = el("div", { "class": "panel" });
+
+    var atas = el("div", { "class": "atas-kartu" });
+    atas.appendChild(el("span", { "class": "posisi" }, "Kartu " + (sesi.i + 1) + " dari " + sesi.ids.length));
+    atas.appendChild(el("span", { "class": "lencana" }, namaMakul(k.makulId)));
+    atas.appendChild(el("span", { "class": "lencana" }, NAMA_JENIS[k.jenis] || k.jenis));
+    panel.appendChild(atas);
+
+    if (k.jenis === "pg") isiKartuPG(panel, k, sesi.balik);
+    else isiKartuPaket(panel, k, sesi.balik);
+
+    var tombolArea = el("div", { style: "margin-top:.9rem" });
+    if (!sesi.balik) {
+      var tmbBalik = el("button", { type: "button", "class": "btn lebar" }, "Balik kartu");
+      tmbBalik.addEventListener("click", function () { sesi.balik = true; gambarKartu(); });
+      tombolArea.appendChild(tmbBalik);
+    } else {
+      var pasangan = el("div", { style: "display:flex; gap:.6rem" });
+      var tmbLupa = el("button", { type: "button", "class": "btn bahaya lebar" }, "Lupa / Ragu");
+      var tmbIngat = el("button", { type: "button", "class": "btn lebar", style: "background:var(--ok); color:#fff" }, "Ingat");
+      tmbLupa.addEventListener("click", function () { nilaiSekarang("lupa"); });
+      tmbIngat.addEventListener("click", function () { nilaiSekarang("ingat"); });
+      pasangan.appendChild(tmbLupa);
+      pasangan.appendChild(tmbIngat);
+      tombolArea.appendChild(pasangan);
+    }
+    panel.appendChild(tombolArea);
+    area.appendChild(panel);
+  }
+
+  // ===== Layar Belajar: info + ringkasan makul =====
+  function gambarBelajar() {
+    var hari = hariIni();
+    var banner = $("banner-uji");
+    if (modeUji()) {
+      banner.textContent = "Mode uji: tanggal hari ini diset ke " + tampilTanggal(hari);
+      banner.classList.remove("tersembunyi");
+    } else {
+      banner.classList.add("tersembunyi");
+    }
+    $("info-hari").textContent = tampilTanggal(hari);
+
+    var wadah = $("ringkasan-makul");
+    kosongkan(wadah);
+    if (data.makul.length === 0) {
+      wadah.appendChild(el("p", { "class": "redup", style: "margin:0" }, "Belum ada makul. Tambah dulu di tab Atur ujian."));
+      return;
+    }
+    var urut = data.makul.slice().sort(function (a, b) { return a.ujian < b.ujian ? -1 : a.ujian > b.ujian ? 1 : 0; });
+    urut.forEach(function (m) {
+      var sisa = Jadwal.sisaHari(m.ujian, hari);
+      var baris = el("div", { "class": "baris-makul" });
+      baris.appendChild(el("div", { "class": "nama" }, m.id + " " + m.nama));
+      var info;
+      if (sisa > 0) {
+        info = "Ujian " + tampilTanggal(m.ujian) + " (sisa " + sisa + " hari, plafon jarak " + Jadwal.plafon(sisa) + " hari)";
+      } else if (sisa === 0) {
+        info = "Hari ini ujian. Kartu makul ini sudah tidak muncul.";
+      } else {
+        info = "Ujian sudah lewat (" + tampilTanggal(m.ujian) + ").";
+      }
+      baris.appendChild(el("div", { "class": "redup" }, info));
+      var kartuMakul = data.kartu.filter(function (k) { return k.makulId === m.id; });
+      var jatuhTempo = kartuMakul.filter(function (k) { return Jadwal.munculHariIni(k, hari, m.ujian); }).length;
+      baris.appendChild(el("div", { "class": "redup" },
+        kartuMakul.length + " kartu, " + jatuhTempo + " jatuh tempo hari ini"));
+      wadah.appendChild(baris);
+    });
+  }
+
+  // ===== Layar Atur ujian =====
+  var hapusMenunggu = null; // id makul yang lagi nunggu konfirmasi hapus
+
+  function gambarAtur() {
+    var wadah = $("daftar-makul");
+    kosongkan(wadah);
+    if (data.makul.length === 0) {
+      wadah.appendChild(el("p", { "class": "redup", style: "margin:0" }, "Belum ada makul."));
+      return;
+    }
+    data.makul.forEach(function (m) {
+      var baris = el("div", { "class": "baris-makul" });
+      baris.appendChild(el("div", { "class": "nama" }, m.id + " " + m.nama));
+      var info = el("div", { "class": "info" });
+
+      var inTgl = el("input", { type: "date", value: m.ujian, "aria-label": "Tanggal ujian " + m.nama });
+      inTgl.addEventListener("change", function () {
+        if (inTgl.value) {
+          m.ujian = inTgl.value;
+          simpan();
+          segarkanBelajar();
+        }
+      });
+      info.appendChild(inTgl);
+
+      var tmbHapus = el("button", { type: "button", "class": "btn bahaya" },
+        hapusMenunggu === m.id ? "Yakin hapus?" : "Hapus");
+      tmbHapus.addEventListener("click", function () {
+        if (hapusMenunggu === m.id) {
+          data.makul = data.makul.filter(function (x) { return x.id !== m.id; });
+          data.kartu = data.kartu.filter(function (k) { return k.makulId !== m.id; });
+          hapusMenunggu = null;
+          simpan();
+          gambarAtur();
+          segarkanBelajar();
+        } else {
+          hapusMenunggu = m.id;
+          gambarAtur();
+        }
+      });
+      info.appendChild(tmbHapus);
+      baris.appendChild(info);
+      if (hapusMenunggu === m.id) {
+        baris.appendChild(el("div", { "class": "redup" }, "Menghapus makul juga menghapus semua kartunya. Tekan sekali lagi untuk yakin."));
+      }
+      wadah.appendChild(baris);
+    });
+  }
+
+  function tambahMakul() {
+    var kode = $("in-kode").value.trim().toUpperCase();
+    var nama = $("in-nama").value.trim();
+    var tgl = $("in-tgl").value;
+    var pesan = $("pesan-tambah");
+    if (!kode || !nama || !tgl) { pesan.textContent = "Kode, nama, dan tanggal ujian harus diisi."; return; }
+    if (data.makul.some(function (m) { return m.id === kode; })) { pesan.textContent = "Kode " + kode + " sudah ada."; return; }
+    data.makul.push({ id: kode, nama: nama, ujian: tgl });
+    simpan();
+    pesan.textContent = "";
+    $("in-kode").value = ""; $("in-nama").value = ""; $("in-tgl").value = "";
+    gambarAtur();
+    segarkanBelajar();
+  }
+
+  // ===== Backup dan restore (logika cek ada di backup.js) =====
+  var restoreMenunggu = null;   // { hasil, namaFile } setelah file dipilih dan lolos pemeriksaan
+  var restoreKonfirmasi = false; // true setelah tekan "Timpa semua data" sekali
+
+  function gambarInfoBackup() {
+    var terakhir = data.pengaturan.backupTerakhir;
+    var info = $("info-backup");
+    if (!terakhir) { info.textContent = "Backup terakhir: belum pernah."; return; }
+    var selisih = Jadwal.sisaHari(hariIni(), terakhir);
+    info.textContent = "Backup terakhir: " + tampilTanggal(terakhir) +
+      (selisih === 0 ? " (hari ini)" : selisih > 0 ? " (" + selisih + " hari lalu)" : "");
+  }
+
+  function gambarBannerBackup() {
+    var banner = $("banner-backup");
+    kosongkan(banner);
+    var teks = Backup.pengingat(data, hariIni());
+    if (!teks) { banner.classList.add("tersembunyi"); return; }
+    banner.classList.remove("tersembunyi");
+    banner.appendChild(el("div", null, teks + " Simpan backup di tab Pengaturan supaya data kartu aman."));
+    var tmb = el("button", { type: "button", "class": "btn polos" }, "Buka Pengaturan");
+    tmb.addEventListener("click", function () { tampilLayar("setting"); });
+    banner.appendChild(tmb);
+  }
+
+  function simpanBackup() {
+    var hari = hariIni();
+    data.pengaturan.backupTerakhir = hari;
+    simpan();
+    var isi = Backup.buatBackup(data, hari, new Date().toISOString());
+    var nama = "flashcard-backup-" + hari + ".json";
+    var blob = new Blob([JSON.stringify(isi, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = el("a", { href: url, download: nama });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+
+    gambarInfoBackup();
+    gambarBannerBackup();
+    var wadah = $("hasil-backup");
+    kosongkan(wadah);
+    wadah.appendChild(el("p", { "class": "pesan-ok" },
+      "Backup disimpan: " + nama + " (cek folder Download). Isinya " + data.makul.length + " makul dan " + data.kartu.length + " kartu."));
+  }
+
+  function gambarRestore() {
+    var wadah = $("hasil-backup");
+    kosongkan(wadah);
+    if (!restoreMenunggu) return;
+    var h = restoreMenunggu.hasil;
+    var kotak = el("div", { "class": "kotak-restore" });
+    var tglFile = h.ringkas.tanggal ? ", dibuat " + tanggalPendek(h.ringkas.tanggal) : "";
+    kotak.appendChild(el("p", null, "File backup (" + restoreMenunggu.namaFile + "): " + h.ringkas.makul + " makul, " + h.ringkas.kartu + " kartu" + tglFile + "."));
+    kotak.appendChild(el("p", null, "Data sekarang: " + data.makul.length + " makul, " + data.kartu.length + " kartu."));
+    kotak.appendChild(el("p", { style: "font-weight:600" }, "Data sekarang akan diganti seluruhnya dengan isi file."));
+    var baris = el("div", { "class": "tombol-baris" });
+    var tmbTimpa = el("button", { type: "button", "class": "btn bahaya" }, restoreKonfirmasi ? "Yakin timpa semua?" : "Timpa semua data");
+    tmbTimpa.addEventListener("click", function () {
+      if (restoreKonfirmasi) terapkanRestore(); else { restoreKonfirmasi = true; gambarRestore(); }
+    });
+    var tmbBatal = el("button", { type: "button", "class": "btn polos" }, "Batal");
+    tmbBatal.addEventListener("click", function () { restoreMenunggu = null; restoreKonfirmasi = false; gambarRestore(); });
+    baris.appendChild(tmbTimpa);
+    baris.appendChild(tmbBatal);
+    kotak.appendChild(baris);
+    wadah.appendChild(kotak);
+  }
+
+  function terapkanRestore() {
+    var h = restoreMenunggu.hasil;
+    var ringkas = h.ringkas;
+    data = h.data;
+    simpan();
+    restoreMenunggu = null;
+    restoreKonfirmasi = false;
+    kartuSedangEdit = null; kartuHapusMenunggu = null; kartuTerbuka = {}; hapusMenunggu = null;
+    terapkanTema();
+    terapkanHuruf();
+    segarkanBelajar();
+    gambarAtur();
+    gambarTabKartu();
+    buatFormTambah();
+    gambarInfoBackup();
+    gambarBannerBackup();
+    var wadah = $("hasil-backup");
+    kosongkan(wadah);
+    wadah.appendChild(el("p", { "class": "pesan-ok" }, "Berhasil dipulihkan: " + ringkas.makul + " makul dan " + ringkas.kartu + " kartu."));
+  }
+
+  function fileDipilih(e) {
+    var input = e.currentTarget;
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var pembaca = new FileReader();
+    pembaca.onload = function () {
+      input.value = ""; // supaya file yang sama bisa dipilih lagi
+      var hasil = Backup.periksaBackup(String(pembaca.result));
+      restoreKonfirmasi = false;
+      if (!hasil.ok) {
+        restoreMenunggu = null;
+        var wadah = $("hasil-backup");
+        kosongkan(wadah);
+        var kotak = el("div", { "class": "kotak-restore" });
+        kotak.appendChild(el("p", { style: "font-weight:600" }, "File ditolak. Data lo yang sekarang tidak diubah."));
+        var ul = el("ul", { "class": "pesan-form" });
+        hasil.kesalahan.forEach(function (s) { ul.appendChild(el("li", null, s)); });
+        kotak.appendChild(ul);
+        wadah.appendChild(kotak);
+        return;
+      }
+      restoreMenunggu = { hasil: hasil, namaFile: file.name };
+      gambarRestore();
+    };
+    pembaca.onerror = function () {
+      input.value = "";
+      restoreMenunggu = null;
+      var wadah = $("hasil-backup");
+      kosongkan(wadah);
+      wadah.appendChild(el("p", { "class": "pesan-form" }, "File tidak bisa dibaca."));
+    };
+    pembaca.readAsText(file);
+  }
+
+  // ===== Pindah layar =====
+  function tampilLayar(nama) {
+    ["belajar", "kartu", "atur", "setting"].forEach(function (n) {
+      $("layar-" + n).classList.toggle("tersembunyi", n !== nama);
+      $("nav-" + n).setAttribute("aria-current", n === nama ? "page" : "false");
+    });
+    hapusMenunggu = null;
+    kartuHapusMenunggu = null;
+    if (restoreMenunggu) { restoreMenunggu = null; restoreKonfirmasi = false; gambarRestore(); }
+    if (nama === "setting") gambarInfoBackup();
+    if (nama === "belajar") segarkanBelajar();
+    else if (nama === "kartu") gambarTabKartu();
+    else if (nama === "atur") gambarAtur();
+  }
+
+  // ===== Mulai =====
+  data = muat();
+  terapkanTema();
+  terapkanHuruf();
+  segarkanBelajar();
+  gambarAtur();
+  gambarTabKartu();
+  gambarInfoBackup();
+  buatFormTambah();
+  $("sel-jenis").addEventListener("change", buatFormTambah);
+
+  var tombolTema = document.querySelectorAll("button[data-tema]");
+  for (var j = 0; j < tombolTema.length; j++) {
+    tombolTema[j].addEventListener("click", function (e) {
+      data.pengaturan.tema = e.currentTarget.getAttribute("data-tema");
+      simpan();
+      terapkanTema();
+    });
+  }
+
+  var tombolHuruf = document.querySelectorAll("button[data-huruf]");
+  for (var i = 0; i < tombolHuruf.length; i++) {
+    tombolHuruf[i].addEventListener("click", function (e) {
+      data.pengaturan.huruf = e.currentTarget.getAttribute("data-huruf");
+      simpan();
+      terapkanHuruf();
+    });
+  }
+
+  $("tombol-tambah").addEventListener("click", tambahMakul);
+  $("tombol-impor").addEventListener("click", imporKartu);
+  $("tombol-backup").addEventListener("click", simpanBackup);
+  $("tombol-pilih-file").addEventListener("click", function () { $("in-file-backup").click(); });
+  $("in-file-backup").addEventListener("change", fileDipilih);
+  $("tombol-muat-contoh").addEventListener("click", muatContoh);
+  $("tombol-hapus-contoh").addEventListener("click", hapusContoh);
+  $("nav-belajar").addEventListener("click", function () { tampilLayar("belajar"); });
+  $("nav-kartu").addEventListener("click", function () { tampilLayar("kartu"); });
+  $("nav-atur").addEventListener("click", function () { tampilLayar("atur"); });
+  $("nav-setting").addEventListener("click", function () { tampilLayar("setting"); });
+
+  // Supaya bisa dipakai offline (hanya jalan di https atau localhost)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      try { navigator.serviceWorker.register("sw.js"); } catch (e) { /* abaikan */ }
+    });
+  }
+})();
+</script>
+</body>
+</html>
