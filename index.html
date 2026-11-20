@@ -152,6 +152,11 @@
   <!-- ===== Layar Pengaturan: tema & ukuran huruf ===== -->
   <section id="layar-setting" class="tersembunyi">
     <div class="panel">
+      <h2>Baca ulang materi</h2>
+      <p class="redup" style="margin:0 0 .6rem">Kartu yang terakhir kamu nilai Ingat, dikelompokkan per makul. Cuma buat dibaca, tidak mempengaruhi jadwal kartu.</p>
+      <button type="button" class="btn" id="tombol-baca-ulang">Buka Baca ulang materi</button>
+    </div>
+    <div class="panel">
       <h2>Tampilan</h2>
       <label>Ukuran huruf</label>
       <div class="kelompok" role="group" aria-label="Ukuran huruf" style="margin-bottom:.9rem">
@@ -175,6 +180,16 @@
       <input type="file" id="in-file-backup" accept=".json,application/json" class="tersembunyi">
       <div id="hasil-backup" style="margin-top:.7rem"></div>
       <p class="redup" style="margin:.7rem 0 0">Simpan file backup di tempat aman (misalnya kirim ke Google Drive atau ke diri sendiri). File yang cuma ada di HP ikut hilang kalau HP rusak atau hilang.</p>
+    </div>
+  </section>
+
+  <!-- ===== Layar Baca ulang materi (dibuka dari Pengaturan, baca doang) ===== -->
+  <section id="layar-baca" class="tersembunyi">
+    <div class="panel">
+      <button type="button" class="btn polos" id="tombol-baca-kembali" style="margin-bottom:.7rem">&larr; Kembali ke Pengaturan</button>
+      <h2>Baca ulang materi</h2>
+      <div id="info-baca" class="redup" style="margin-bottom:.6rem"></div>
+      <div id="daftar-baca"></div>
     </div>
   </section>
 
@@ -1125,7 +1140,7 @@
     simpan();
     restoreMenunggu = null;
     restoreKonfirmasi = false;
-    kartuSedangEdit = null; kartuHapusMenunggu = null; kartuTerbuka = {}; hapusMenunggu = null;
+    kartuSedangEdit = null; kartuHapusMenunggu = null; kartuTerbuka = {}; bacaTerbuka = {}; hapusMenunggu = null;
     terapkanTema();
     terapkanHuruf();
     segarkanBelajar();
@@ -1173,11 +1188,58 @@
     pembaca.readAsText(file);
   }
 
+  // ===== Baca ulang materi (tahap 7) =====
+  // Daftar kartu berstatus "Ingat sekarang" (penilaian terakhir Ingat: jarak > 0 dan lupa = false),
+  // per makul, urut sesuai data (id). Baca doang: tidak ada tombol nilai dan tidak mengubah data/jadwal.
+  // Makul yang ujiannya sudah lewat tetap tampil selama makulnya belum dihapus.
+  var bacaTerbuka = {}; // id kartu yang lagi dibuka di layar ini
+
+  function kartuIngatSekarang(k) { return k.jarak > 0 && k.lupa === false; }
+
+  function gambarBacaUlang() {
+    var info = $("info-baca");
+    var wadah = $("daftar-baca");
+    kosongkan(wadah);
+    var total = 0, jumlahMakul = 0;
+
+    data.makul.forEach(function (m) {
+      var milik = data.kartu.filter(function (k) { return k.makulId === m.id && kartuIngatSekarang(k); });
+      if (milik.length === 0) return; // makul tanpa kartu Ingat disembunyikan
+      total += milik.length;
+      jumlahMakul++;
+      wadah.appendChild(el("div", { "class": "judul-makul" }, m.nama + " (" + milik.length + " kartu)"));
+      milik.forEach(function (k) {
+        var d = el("details", { "class": "kartu-baris" });
+        if (bacaTerbuka[k.id]) d.open = true;
+        d.addEventListener("toggle", function () { bacaTerbuka[k.id] = d.open; });
+
+        var sum = el("summary");
+        sum.appendChild(el("span", { "class": "lencana" }, NAMA_JENIS[k.jenis] || k.jenis));
+        sum.appendChild(el("span", { "class": "ringkas" }, ringkasSoal(k)));
+        d.appendChild(sum);
+
+        var isi = el("div", { "class": "isi" });
+        if (k.jenis === "pg") isiKartuPG(isi, k, true);
+        else isiKartuPaket(isi, k, true);
+        d.appendChild(isi);
+        wadah.appendChild(d);
+      });
+    });
+
+    if (total === 0) {
+      info.textContent = "Belum ada kartu berstatus Ingat. Kartu yang kamu nilai Ingat di tab Belajar akan muncul di sini.";
+    } else {
+      info.textContent = "Total " + total + " kartu dari " + jumlahMakul + " makul. Ketuk kartu untuk membuka soal dan jawabannya.";
+    }
+  }
+
   // ===== Pindah layar =====
+  // "baca" (Baca ulang materi) dibuka dari Pengaturan, jadi tab Pengaturan tetap yang menyala.
   function tampilLayar(nama) {
-    ["belajar", "kartu", "atur", "setting"].forEach(function (n) {
+    var navAktif = nama === "baca" ? "setting" : nama;
+    ["belajar", "kartu", "atur", "setting", "baca"].forEach(function (n) {
       $("layar-" + n).classList.toggle("tersembunyi", n !== nama);
-      $("nav-" + n).setAttribute("aria-current", n === nama ? "page" : "false");
+      if (n !== "baca") $("nav-" + n).setAttribute("aria-current", n === navAktif ? "page" : "false");
     });
     hapusMenunggu = null;
     kartuHapusMenunggu = null;
@@ -1186,6 +1248,7 @@
     if (nama === "belajar") segarkanBelajar();
     else if (nama === "kartu") gambarTabKartu();
     else if (nama === "atur") gambarAtur();
+    else if (nama === "baca") gambarBacaUlang();
   }
 
   // ===== Mulai =====
@@ -1228,6 +1291,8 @@
   $("nav-kartu").addEventListener("click", function () { tampilLayar("kartu"); });
   $("nav-atur").addEventListener("click", function () { tampilLayar("atur"); });
   $("nav-setting").addEventListener("click", function () { tampilLayar("setting"); });
+  $("tombol-baca-ulang").addEventListener("click", function () { tampilLayar("baca"); window.scrollTo(0, 0); });
+  $("tombol-baca-kembali").addEventListener("click", function () { tampilLayar("setting"); window.scrollTo(0, 0); });
 
   // Supaya bisa dipakai offline (hanya jalan di https atau localhost)
   if ("serviceWorker" in navigator) {

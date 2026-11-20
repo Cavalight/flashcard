@@ -4,7 +4,7 @@
 // PENTING: tiap kali ngubah file app (index.html, *.js), naikkan angka VERSI di bawah
 //          supaya HP membuang cache lama.
 
-var VERSI = "v1";
+var VERSI = "v2";
 var NAMA_CACHE = "flashcard-uas-" + VERSI;
 var FILE_APP = [
   "./",
